@@ -1,0 +1,30 @@
+{
+  "devDependencies": {
+    "pg": "8.16.3",
+    "supabase": "2.117.0"
+  },
+  "name": "project-saas-local",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node scripts/preflight.mjs",
+    "migrations:sync": "node scripts/sync-migrations.mjs",
+    "local:start": "supabase start",
+    "local:stop": "supabase stop",
+    "local:status": "supabase status --output json",
+    "test:integration": "node scripts/test-integration.mjs --reset-local",
+    "db:reset": "supabase db reset --local",
+    "db:test": "supabase test db --local",
+    "db:lint": "supabase db lint --local --schema public,app_private --fail-on error",
+    "app:start": "node app/server.mjs",
+    "app:demo": "node scripts/seed-local-demo.mjs",
+    "app:test": "node --test scripts/test-project-list.mjs",
+    "app:check": "node --check app/app.js && node --check app/projects.mjs && node --check app/server.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0"
+  }
+}
