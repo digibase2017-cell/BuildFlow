@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 
 // Called only inside the reset-guarded local integration harness.
-export async function testQuoteSources({ owner, foreignClient, company, other, check }) {
+export async function testQuoteSources({ db, owner, foreignClient, foreignSubject, company, other, check }) {
   async function rejected(sql, values, code, name, constraint) {
     await assert.rejects(owner.query(sql, values), e => e.code === code && (!constraint || e.constraint === constraint), name);
     check(true, name);
@@ -24,7 +25,12 @@ export async function testQuoteSources({ owner, foreignClient, company, other, c
   const apply = (p, v) => owner.query('SELECT public.apply_quote_version($1,$2,$3)', [company, p, v]);
   await rejected('SELECT public.apply_quote_version($1,$2,$3)', [company, project, versions[3].version], '23514', 'Cannot apply draft Quote');
   await rejected('SELECT public.apply_quote_version($1,$2,$3)', [company, wrongProject, versions[0].version], '23514', 'Cannot apply finalized Quote from a different Lead');
-  const foreignLead = (await foreignClient.query("INSERT INTO public.leads(company_id,customer_name) VALUES ($1,'Foreign quote customer') RETURNING id", [other])).rows[0].id;
+  const foreignLead = randomUUID();
+  await foreignClient.query("INSERT INTO public.leads(id,company_id,customer_name) VALUES ($1,$2,'Foreign quote customer')", [foreignLead, other]);
+  const foreignUser = (await db.query('SELECT id FROM public.users WHERE company_id=$1 AND auth_user_id=$2', [other, foreignSubject])).rows[0].id;
+  await db.query(`UPDATE public.users SET role_id=(SELECT id FROM public.roles WHERE company_id=$1 AND code='admin') WHERE id=$2`, [other, foreignUser]);
+  await foreignClient.query('SELECT public.set_lead_assignees($1,$2,$3)', [other, foreignLead, [foreignUser]]);
+  await db.query(`UPDATE public.users SET role_id=(SELECT id FROM public.roles WHERE company_id=$1 AND code='sales') WHERE id=$2`, [other, foreignUser]);
   const foreignQuote = (await foreignClient.query("INSERT INTO public.quotes(company_id,lead_id,title) VALUES ($1,$2,'Foreign quote') RETURNING id", [other, foreignLead])).rows[0].id;
   const foreignVersion = (await foreignClient.query('INSERT INTO public.quote_versions(company_id,quote_id,version_number) VALUES ($1,$2,1) RETURNING id', [other, foreignQuote])).rows[0].id;
   await foreignClient.query('SELECT public.finalize_quote_version($1,$2)', [other, foreignVersion]);

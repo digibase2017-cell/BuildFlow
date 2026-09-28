@@ -1,5 +1,11 @@
 # Project SaaS — Migration 001–010
 
+## Migration 012: `lead.view.all` — 27/09/2026
+
+Migration 012 nâng cấp database đã có 001–011: nới định dạng mã Permission để nhận `lead.view.all`, thêm mã quyền, cập nhật helper/RLS và ma trận mặc định Owner/Admin, cấp quyền mới cho các Role Owner/Admin hiện có. Cài mới cũng nhận quyền này từ 001/007/009/010; nguồn SQL và bản Supabase được đồng bộ. `lead.view` nay chỉ đọc Lead được phân công; `lead.view.all` đọc mọi Lead cùng công ty, kể cả chưa phân công. Quyền ghi và phân công vẫn xét riêng theo quyền hành động cùng phạm vi Lead. User tạo Lead chưa phân công mà không có `lead.view.all` cần dùng INSERT không yêu cầu RETURNING hoặc được phân công trước khi đọc lại.
+
+Đã kiểm tra trên database local disposable: `npm ci --cache .npm-cache`, `npm run check`, `npm run local:start`, `npm run db:reset`, `npm run db:lint`, `npm run db:test` (211/211), `npm run test:integration` (1061/1061, reset fixture trước/sau), `npm run app:check`, `npm run app:test` (6/6). Không kiểm thử nâng cấp từ database đang có dữ liệu thật; không thực hiện cloud push.
+
 **Cập nhật 25/09/2026:** Thiết kế đổi sang năm trạng thái tổng `Chưa bắt đầu`, `Đang thiết kế`, `Chờ khách duyệt`, `Đã duyệt`, `Đã hủy`; lần gửi thêm `Đã hủy`. Trigger đồng bộ theo lần gửi mới nhất: gửi → chờ duyệt, khách yêu cầu sửa → đang thiết kế, duyệt → đã duyệt. Hủy một lần gửi không tự hủy Thiết kế; User có quyền tự đổi trạng thái tổng sang `Đã hủy`. Trạng thái Project không đổi. Đã áp dụng lại 001–010 trên Supabase Local, lint không lỗi, **176 pgTAP** và **1058 HTTP/concurrency** đạt. Xem README để biết trạng thái dữ liệu mẫu.
 
 Bản nháp cài mới, cập nhật ngày **24/09/2026** theo `project_handoff_business_decisions.md` và các quyết định Lead/phân quyền đã chốt trong cuộc trao đổi.
@@ -133,3 +139,14 @@ Sáu nhóm chi phí: Nhân công, Vật tư, Vận chuyển, Máy móc, Thuê ng
 ## Bổ sung Lead/Project và option tùy chỉnh — 26/09/2026
 
 Migration 011 là thay đổi bổ sung sau khi người dùng chốt các trường mới; 001–010 giữ nguyên byte. Xem phần bổ sung cuối `project_handoff_business_decisions.md` và `BUILD_FLOW_LEAD_FIELDS.md` để biết quyết định, cách dùng và kết quả kiểm thử. `source_2`/`source_3` là văn bản; Nguồn, Loại thực hiện, Loại công trình và Lý do thất bại lấy từ option riêng từng công ty. Option bị bỏ được ẩn, vẫn giữ nguyên trên Lead/Project cũ. `leads.budget` và `project_financials.budget` là một giá trị nhập tay độc lập ở mỗi nơi; không có phân loại dự kiến/thực tế.
+## 28/09/2026 — Quyền xem toàn bộ Lead và trạng thái Sale
+
+- Migration 012 thêm `lead.view.all` độc lập với `lead.view`; Owner/Admin nhận mặc định. RLS chỉ mở xem Lead trong cùng công ty, không mở quyền sửa, xóa hoặc phân công.
+- Migration 013 đổi giá trị cũ: `Mới tiếp nhận` → `Mới`, `Đã liên hệ` → `Đang chăm sóc`, `Đàm phán` → `Đã hẹn gặp`, `Đã gửi báo giá` → `Đã báo giá`. `Thành công` và `Thất bại` giữ nguyên. Default và CHECK constraint dùng sáu trạng thái mới.
+- Chưa có dữ liệu nội dung chăm khách theo Lead cho tab hoạt động mới nhất. RPC `set_lead_assignees` hiện chưa cưỡng chế department Sale; dropdown trang danh sách chỉ lọc nhân sự Sale ở giao diện. Cần migration/API riêng để hoàn thành hai chức năng này theo yêu cầu.
+
+## 28/09/2026 — Migration 014: Tỉnh/Thành phố và tạo Lead kèm phân công
+
+- Thêm loại option `province` dùng chung trong công ty, không seed tỉnh cố định. `add_province_option` cho người có `lead.create` hoặc `lead.edit` thêm và tái kích hoạt lựa chọn; RLS chỉ đọc option trong công ty theo quyền Lead.
+- Thêm `leads.province`, kiểm tra lựa chọn còn hoạt động cùng công ty; thêm `user_preferences.default_province` với RLS chỉ đọc của chính user. Preference được cập nhật qua RPC trong cùng transaction tạo Lead.
+- `list_sale_candidates` chỉ công bố ID và tên Sales đang hoạt động cho người có `lead.assign`. `create_lead_with_assignees` kiểm tra `lead.create`, kiểm tra riêng `lead.assign` khi có người được chọn, chỉ nhận Sales cùng công ty và tạo Lead/phân công/preference nguyên tử. Không mở phạm vi cho RPC sửa phân công của Lead đã tồn tại.

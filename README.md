@@ -1,5 +1,11 @@
 # Supabase Local — Project SaaS
 
+## Quyền `lead.view.all` — 27/09/2026
+
+Migration 012 bổ sung quyền xem mọi Lead cùng công ty. `lead.view` chỉ xem Lead được phân công; Lead chưa phân công chỉ hiện với `lead.view.all` hoặc Owner/Admin. Hai quyền dùng cùng cơ chế Role và override theo User. RLS kiểm tra riêng phạm vi đọc; `lead.view.all` không cấp quyền sửa, xóa hay phân công. UI Lead nhận cả hai quyền xem.
+
+Đã chạy `npm ci --cache .npm-cache`, `npm run migrations:sync`, `npm run check`, `npm run local:start`, `npm run db:reset`, `npm run db:lint`, `npm run db:test`: 14 migration áp dụng từ DB trống, lint sạch, **227/227 pgTAP PASS**. Bộ HTTP/JWT/concurrency trước Migration 014 đạt **1061/1061**, tự reset database thử nghiệm trước và sau. `npm run app:check` và `npm run app:test` đạt. Các kết quả PASS bên dưới là lịch sử trước Migration 012. Chưa kiểm thử nâng cấp từ database có dữ liệu thật hoặc tải lớn.
+
 ## Cập nhật trạng thái Thiết kế — 25/09/2026
 
 Trạng thái tổng Thiết kế hiện là `Chưa bắt đầu`, `Đang thiết kế`, `Chờ khách duyệt`, `Đã duyệt`, `Đã hủy`. Lần gửi có thêm trạng thái `Đã hủy`. Lần gửi mới nhất `Đã gửi` chuyển tổng sang `Chờ khách duyệt`; khi khách yêu cầu sửa (`Đang sửa`), tổng về `Đang thiết kế`; `Sửa xong` chưa coi là đã gửi lại; lần gửi mới nhất `Đã duyệt` chuyển tổng sang `Đã duyệt`. Lần gửi cũ không ghi đè trạng thái lần mới. Trạng thái Project giữ nguyên năm giá trị đã chốt.
@@ -152,7 +158,7 @@ Không đưa thông tin khóa local vào ảnh/log gửi đi. Khi cần hỗ tr�
 
 ## Cấu trúc
 
-- `source_migrations/`: 10 file SQL gốc làm nguồn sửa.
+- `source_migrations/`: 14 file SQL gốc làm nguồn sửa.
 - `supabase/migrations/`: cùng nội dung, tên timestamp hợp lệ cho Supabase CLI.
 - `supabase/config.toml`: cấu hình CLI đã init; không chạy seed.sql riêng vì Migration 010 đã chứa defaults.
 - `supabase/tests/database/001_workflow.test.sql`: fixture hai công ty và 76 assertion, gói trong BEGIN/ROLLBACK.
@@ -179,7 +185,7 @@ npm run db:test
 
 ## Phạm vi kiểm thử đã chuẩn bị
 
-- Danh mục 57 quyền, không có bảng Sale riêng; 11 Role/công ty, không seed User override.
+- Danh mục 58 quyền sau Migration 012, không có bảng Sale riêng; 11 Role/công ty, không seed User override.
 - Lead chưa phân công; phân nhiều người; người tạo mất quyền; cập nhật nhu cầu trên cùng Lead; trưởng nhóm tự thêm/gỡ mình; lead.assign không vượt phạm vi.
 - Chặn người nhận khác tenant và giữ nguyên phân công nếu RPC thất bại; cấp riêng allow/deny; danh sách chọn người không mở toàn bộ bảng users.
 - Lead Thành công không tự tạo Project; RPC đòi đúng trạng thái/phạm vi; Project Sales là snapshot độc lập.
@@ -205,3 +211,15 @@ Supabase Local hiện đã thiết lập. Có thể mở Studio tại `http://12
 ## Build Flow — trường Lead/Project mới, 26/09/2026
 
 Migration 011 thêm Source 2/3, loại thực hiện chọn nhiều, loại công trình, một ngân sách nhập tay trên mỗi Lead/Project và lý do thất bại bắt buộc. Option riêng theo công ty được thêm/ẩn trong menu chọn; ẩn không xóa giá trị đã lưu. Khi tạo Project, loại thực hiện và loại công trình được sao chép từ Lead rồi độc lập. Ngân sách Project dùng `project_financials.budget`; Sales/Marketing được thao tác giá trị này theo quyền Lead nguồn qua RPC giới hạn trường. Xem `BUILD_FLOW_LEAD_FIELDS.md` để biết kiểm thử và giới hạn. Phần trước của README ghi lại các mốc kiểm thử lịch sử, không phải trạng thái migration hiện tại.
+
+## Danh sách Lead, 28/09/2026
+
+Migration 012 bổ sung quyền độc lập `lead.view.all` cho Owner/Admin theo mặc định và mở RLS xem mọi Lead trong cùng công ty. Migration 013 chuyển sáu trạng thái Sale sang `Mới`, `Đang chăm sóc`, `Đã hẹn gặp`, `Đã báo giá`, `Thành công`, `Thất bại`. Trang danh sách tại `#/leads` truy vấn từng trang 50 hoặc 100 dòng trên server, tìm tên/số điện thoại và lọc kết hợp, không đếm tổng. Cột phân công dùng RPC `set_lead_assignees`; nút tạo dự án dùng quy trình `create_project_from_lead` hiện có.
+
+Giới hạn hiện tại: schema/API chưa lưu nội dung chăm khách theo Lead để tạo tab “Hoạt động mới nhất”. RPC `list_sale_candidates` ở Migration 014 cho người có `lead.assign` xem riêng tên Sales để chọn; `set_lead_assignees` ở danh sách Lead vẫn chỉ kiểm tra nhân viên cùng công ty đang hoạt động, chưa cưỡng chế phòng Sale.
+
+## Tạo Lead mới — catalog Tỉnh/Thành phố, 28/09/2026
+
+Migration 014 bổ sung option `province` dùng chung theo công ty (ban đầu rỗng), `leads.province` và `user_preferences.default_province` chỉ đọc được bởi chính user. RPC `add_province_option` cho người có `lead.create` hoặc `lead.edit` thêm tỉnh; `list_sale_candidates` chỉ trả nhân viên Sales đang hoạt động của công ty cho người có `lead.assign`. RPC `create_lead_with_assignees` tạo Lead, phân công nhiều Sale và cập nhật tỉnh mặc định trong một transaction, kiểm tra riêng `lead.create` và `lead.assign`; Lead không phân công vẫn tạo được. Trang `#/leads/new` có ba card, không có Trạng thái Sale; database đặt mặc định `Mới`. `Khác` đã được bỏ khỏi lựa chọn Loại thực hiện trên trang tạo.
+
+`set_lead_assignees` dùng ở danh sách Lead vẫn theo phạm vi cũ và chưa kiểm tra department Sales ở database; cần xử lý riêng nếu muốn áp dụng cùng ràng buộc cho mọi con đường phân công. Tab Hoạt động mới nhất vẫn chưa có dữ liệu chăm khách backend.

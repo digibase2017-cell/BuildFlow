@@ -12,6 +12,7 @@ import { testRoleMatrix } from './test-role-matrix.mjs';
 import { testPermissionActions } from './test-permission-actions.mjs';
 import { testModuleConcurrency } from './test-module-concurrency.mjs';
 import { testHiddenProjects } from './test-hidden-projects.mjs';
+import { testLeadDetailApi } from './test-lead-detail-api.mjs';
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -113,7 +114,15 @@ try {
     body: { id: lead, company_id: company, customer_name: 'HTTP customer' } });
   check(r.status === 201 && r.body[0].created_by === admin.id, 'HTTP Lead create assigns the authenticated actor');
   r = await http(`/rest/v1/leads?id=eq.${lead}&select=id`, { token: sales.token });
-  check(r.status === 200 && r.body.length === 1, 'HTTP Sales sees unassigned Lead');
+  check(r.status === 200 && r.body.length === 0, 'HTTP lead.view cannot see unassigned Lead');
+  await owner.query("SELECT public.set_user_permission($1,$2,'lead.view.all','allow')", [company, sales.id]);
+  r = await http(`/rest/v1/leads?id=eq.${lead}&select=id`, { token: sales.token });
+  check(r.status === 200 && r.body.length === 1, 'HTTP lead.view.all sees unassigned Lead');
+  r = await http(`/rest/v1/leads?id=eq.${lead}`, { token: sales.token, method: 'PATCH', prefer: 'return=representation', body: { notes: 'forbidden via all' } });
+  check(r.status === 200 && r.body.length === 0, 'HTTP lead.view.all does not grant edit scope');
+  await owner.query("SELECT public.set_user_permission($1,$2,'lead.view.all','deny')", [company, sales.id]);
+  r = await http(`/rest/v1/leads?id=eq.${lead}&select=id`, { token: sales.token });
+  check(r.status === 200 && r.body.length === 0, 'HTTP deny lead.view.all hides unassigned Lead');
   r = await http(`/rest/v1/leads?id=eq.${lead}&select=id`, { token: foreign.token });
   check(r.status === 200 && r.body.length === 0, 'HTTP tenant isolation hides foreign Lead');
   r = await http('/rest/v1/leads', { token: foreign.token, method: 'POST', body: { company_id: company, customer_name: 'Forbidden' } });
@@ -139,7 +148,7 @@ try {
   await db.query('UPDATE public.users SET is_active=true WHERE id=$1', [sales.id]);
 
   await owner.query("SELECT public.set_user_permission($1,$2,'lead.assign','allow')", [company, sales.id]);
-  await owner.query('SELECT public.set_lead_assignees($1,$2,$3)', [company, lead, []]);
+  await owner.query('SELECT public.set_lead_assignees($1,$2,$3)', [company, lead, [sales.id]]);
   let outcome = await race(db, admin.subject,
     c => c.query('SELECT public.set_lead_assignees($1,$2,$3)', [company, lead, [admin.id]]), sales.subject,
     c => c.query('SELECT public.set_lead_assignees($1,$2,$3)', [company, lead, [sales.id]]));
@@ -165,7 +174,7 @@ try {
   const project = outcome.first.rows[0].id;
   await db.query('UPDATE public.company_subscriptions SET max_projects=10 WHERE company_id=$1', [company]);
   outcome = await race(db, admin.subject,
-    c => c.query("UPDATE public.leads SET status='Đàm phán' WHERE id=$1", [lead]), admin.subject,
+    c => c.query("UPDATE public.leads SET status='Đã hẹn gặp' WHERE id=$1", [lead]), admin.subject,
     c => c.query("SELECT public.create_project_from_lead($1,$2,'Stale status')", [company, lead]));
   check(outcome.second.error?.code === '23514', 'Project creation rechecks successful Lead status after concurrent reversal');
 
@@ -200,11 +209,12 @@ try {
   check((await owner.query('SELECT version_number FROM public.quote_versions WHERE quote_id=$1 ORDER BY version_number', [quote])).rows.map(x => x.version_number).join() === '1,2,3',
     'Concurrent clones allocate V2 and V3 without collisions');
   const foreignClient = await connect(foreign.subject);
-  await testQuoteSources({ owner, foreignClient, company, other, check });
+  await testQuoteSources({ db, owner, foreignClient, foreignSubject: foreign.subject, company, other, check });
   const roleContext = await testRoleMatrix({ db, owner, company, admin, sales, identity, http, check });
   await testPermissionActions({ db, owner, company, foreign, http, check, ...roleContext });
   await testModuleConcurrency({ db, owner, company, admin, race, check });
   await testHiddenProjects({ db, owner, company, other, foreign, admin, sales, http, check, race, ...roleContext });
+  await testLeadDetailApi({ db, owner, company, admin, foreign, identity, http, check });
   console.log(`PASS: ${checks} HTTP/concurrency/source/role checks`);
 } catch (error) {
   // Never print HTTP credentials, JWTs, connection URLs or command stdout.

@@ -11,6 +11,65 @@
 
 ## 1. Thuật ngữ cốt lõi
 
+### Thuật ngữ giao diện và menu — chốt ngày 27/09/2026
+
+- **Menu tổng**: menu ở panel trái.
+- **Menu dự án**: menu ở trang dự án.
+- **Ô**: một khu dữ liệu trong panel bên phải. Ví dụ: **Ô Thông tin chung**, **Ô Danh sách công việc gần đây**.
+
+Menu tổng gồm đúng các mục sau, theo thứ tự:
+
+| Menu tổng |
+| --- |
+| Tổng quan |
+| Lead |
+| Báo giá |
+| Dự án |
+| Thiết kế |
+| Mua hàng |
+| Sản xuất |
+| Thi công |
+| Tài Chính |
+| Báo cáo |
+| Nhân sự |
+| Cài đặt |
+
+Menu dự án gồm đúng các mục sau, theo thứ tự:
+
+| Menu dự án |
+| --- |
+| Tổng quan |
+| Báo giá |
+| Thiết kế |
+| Mua hàng |
+| Sản xuất |
+| Thi công |
+| Tài Chính |
+| Lịch sử |
+
+Chuẩn hóa lỗi gõ “Thiết kết” trong danh sách menu dự án thành “Thiết kế”, thống nhất với menu tổng và tên module hiện có. Danh sách này chốt cấu trúc menu; quyền truy cập và cờ module vẫn theo nghiệp vụ đã chốt. Nghiệm thu và Thanh toán vẫn thuộc mọi Project; vị trí cụ thể trong các ô chưa được chốt ở quyết định menu này.
+
+### Tên trang và luồng điều hướng dự án — chốt ngày 27/09/2026
+
+- Bấm **Dự án** trong **menu tổng** → trang **Danh sách dự án**.
+- Bấm **tên dự án** trong Danh sách dự án → trang **Chi tiết dự án > Tổng quan** của dự án đó. **Tổng quan** là mục mở mặc định khi vào Chi tiết dự án.
+- Trong Chi tiết dự án, dùng **menu dự án** để chuyển giữa các trang của cùng dự án; cách gọi thống nhất là **Chi tiết dự án > [Tên mục menu dự án]**.
+
+Các tên trang tương ứng:
+
+| Mục menu dự án | Tên trang |
+| --- | --- |
+| Tổng quan | Chi tiết dự án > Tổng quan |
+| Báo giá | Chi tiết dự án > Báo giá |
+| Thiết kế | Chi tiết dự án > Thiết kế |
+| Mua hàng | Chi tiết dự án > Mua hàng |
+| Sản xuất | Chi tiết dự án > Sản xuất |
+| Thi công | Chi tiết dự án > Thi công |
+| Tài Chính | Chi tiết dự án > Tài Chính |
+| Lịch sử | Chi tiết dự án > Lịch sử |
+
+### Thuật ngữ nghiệp vụ
+
 - **Đối tác / Partner** = công ty mua và sử dụng SaaS, lưu tại `companies`.
 - **Khách hàng / Customer** = khách cuối của Đối tác, **không có bảng `customers` riêng**; thông tin Khách hàng chỉ lưu trong `leads`.
 - **User** = nhân viên của Đối tác.
@@ -127,9 +186,9 @@ Nghiệm thu **không bị hard-code theo Role Giám sát**.
 
 ## 2.6. Danh sách Permission đã thống nhất
 
-Bộ Permission sau khi bỏ 4 mã `sale.*` và bỏ `project.delete` gồm **56 mã**. Ký hiệu `/` dưới đây là cách viết gọn các mã riêng biệt:
+Bộ Permission sau khi bỏ 4 mã `sale.*` và bỏ `project.delete` gồm **57 mã**. Ký hiệu `/` dưới đây là cách viết gọn các mã riêng biệt:
 
-- `lead.view/create/edit/delete/assign`
+- `lead.view/view.all/create/edit/delete/assign`
 - `quote.view/create/edit/delete/finalize/export`
 - `project.view/create/edit/manage_members`
 - `catalog.view/create/edit/delete`
@@ -153,8 +212,8 @@ Mỗi mã dạng `module.view/create/edit` được mở rộng thành ba Permis
 
 | Role | Permission mặc định |
 | --- | --- |
-| Owner | Toàn bộ 56 Permission thông thường; các hành động Owner-only được kiểm tra riêng |
-| Admin | Toàn bộ 56 Permission thông thường; vẫn bị giới hạn bởi các hành động được bảo vệ ở mục 2.4 |
+| Owner | Toàn bộ 57 Permission thông thường; các hành động Owner-only được kiểm tra riêng |
+| Admin | Toàn bộ 57 Permission thông thường; vẫn bị giới hạn bởi các hành động được bảo vệ ở mục 2.4 |
 | Marketing | `lead.view/create/edit` |
 | Sales | `lead.view/create/edit`; `quote.view/create/edit/finalize/export`; `project.view/create`; `catalog.view/create/edit`; `design.view`; `purchasing.view`; `production.view`; `construction.view`; `acceptance.view`; `payment.view`; `document.view/create/edit` |
 | Project Manager | `lead.view`; `quote.view/export`; `project.view/create/edit/manage_members`; `catalog.view`; `design.view/create/edit`; `purchasing.view/create/edit`; `production.view/create/edit`; `construction.view/create/edit`; `acceptance.view/assign`; `payment.view`; `financial.view`; `document.view/create/edit`; `activity_log.view`; `user.view`; `report.view/export` |
@@ -217,10 +276,10 @@ Frontend không được tự làm `MAX + 1`; cần transaction/counter an toàn
 
 Trạng thái bán hàng trên Lead:
 
-- Mới tiếp nhận
-- Đã liên hệ
-- Đã gửi báo giá
-- Đàm phán
+- Mới
+- Đang chăm sóc
+- Đã hẹn gặp
+- Đã báo giá
 - Thành công
 - Thất bại
 
@@ -232,14 +291,15 @@ Một Lead có thể phân công cho **nhiều User**, không giới hạn hai n
 
 | Tình trạng | Người được xem trong cùng Partner |
 | --- | --- |
-| Chưa có ai được phân công | Mọi User có quyền hiệu lực `lead.view` |
-| Đã có người được phân công | Chỉ các User trong danh sách phụ trách và có quyền hiệu lực `lead.view` |
+| Chưa có ai được phân công | User có quyền hiệu lực `lead.view.all` |
+| Đã có người được phân công | User trong danh sách phụ trách có `lead.view`, hoặc User có `lead.view.all` |
 | Owner/Admin | Xem mọi Lead, không phụ thuộc danh sách phụ trách |
 
 - Trưởng nhóm muốn theo dõi cùng nhân viên phải tự thêm tên mình vào danh sách khi phân công.
 - `lead.assign` không tự mở quyền xem mọi Lead đã giao cho người khác.
 - Người tạo Lead/Marketing không giữ quyền xem sau phân công nếu không có trong danh sách phụ trách (trừ Owner/Admin).
-- Bỏ hết người phụ trách thì Lead trở lại phạm vi xem của Lead chưa phân công.
+- Bỏ hết người phụ trách thì chỉ người có `lead.view.all` (và Owner/Admin) xem được Lead.
+- `lead.view` và `lead.view.all` là hai quyền độc lập, có thể cấp/thu hồi theo Role hoặc override từng User. `lead.view.all` chỉ mở phạm vi đọc trong cùng công ty; không tự cấp quyền sửa, xóa hoặc phân công.
 - `lead.create` hoặc `lead.edit` không thay thế `lead.view`.
 - Quyền sửa cần `lead.edit` và phạm vi Lead hợp lệ; quyền phân công cần `lead.assign` và phạm vi Lead hợp lệ. Khi thao tác phân công làm người thực hiện mất phạm vi, các lần truy cập sau phải áp dụng danh sách mới.
 - Owner/Admin xem mọi dữ liệu trong Partner theo quyết định đã chốt; điều này không cho phép vượt tenant, trạng thái tài khoản/thuê bao hoặc các hành động quản trị được bảo vệ. Ngoại lệ xem toàn bộ của Owner/Admin phải được triển khai rõ, không suy diễn thành quyền ghi không giới hạn.

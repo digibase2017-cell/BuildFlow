@@ -12,7 +12,7 @@ check(docker.status===0,'Docker Engine must be running and reachable');
 if(docker.status!==0) console.log('Open Docker Desktop, then rerun npm run check.');
 const migrations = (await readdir(path.join(root,'supabase/migrations'))).filter(n=>n.endsWith('.sql')).sort();
 const sources = (await readdir(path.join(root,'source_migrations'))).filter(n=>/^\d{3}_.*\.sql$/.test(n)).sort();
-check(sources.length===11 && migrations.length===11,'Exactly 11 source and 11 Supabase migration files');
+check(sources.length===15 && migrations.length===15,'Exactly 15 source and 15 Supabase migration files');
 const hash = b => createHash('sha256').update(b).digest('hex');
 for(let i=0;i<Math.min(sources.length,migrations.length);i++) {
  const a=await readFile(path.join(root,'source_migrations',sources[i]));

@@ -18,7 +18,7 @@ CREATE TABLE public.companies (
 
 CREATE TABLE public.permissions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    code text NOT NULL UNIQUE CHECK (code ~ '^[a-z_]+\.[a-z_]+$'),
+    code text NOT NULL UNIQUE CHECK (code ~ '^[a-z_]+\.[a-z_]+(\.[a-z_]+)?$'),
     description text NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now()
 );

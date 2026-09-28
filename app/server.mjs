@@ -21,8 +21,11 @@ if (status.API_URL !== 'http://127.0.0.1:54321' || !status.ANON_KEY) {
 const files = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/projects.mjs', ['projects.mjs', 'text/javascript; charset=utf-8']],
+  ['/leads.mjs', ['leads.mjs', 'text/javascript; charset=utf-8']],
+  ['/managed-options.mjs', ['managed-options.mjs', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
+  ['/lead-detail.css', ['lead-detail.css', 'text/css; charset=utf-8']],
   ['/fonts.css', ['fonts.css', 'text/css; charset=utf-8']],
 ]);
 const fontRoot = path.join(root, 'node_modules/@fontsource-variable/inter/files');

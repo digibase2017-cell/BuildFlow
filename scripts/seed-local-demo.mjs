@@ -54,9 +54,9 @@ try {
       annual_price_vnd,max_active_users,max_projects,r2_storage_bytes
     FROM public.subscription_plans WHERE code='starter'`, [company]);
   for (const user of users) {
-    await db.query(`INSERT INTO public.users(id,company_id,auth_user_id,role_id,full_name,email)
-      SELECT $1,$2,$3,id,$4,$5 FROM public.roles WHERE company_id=$2 AND code=$6`,
-    [user.id, company, user.authId, user.code === 'owner' ? 'Chủ doanh nghiệp' : 'Nhân viên Sales', user.email, user.code]);
+    await db.query(`INSERT INTO public.users(id,company_id,auth_user_id,role_id,full_name,email,department)
+      SELECT $1,$2,$3,id,$4,$5,$7 FROM public.roles WHERE company_id=$2 AND code=$6`,
+    [user.id, company, user.authId, user.code === 'owner' ? 'Chủ doanh nghiệp' : 'Nhân viên Sales', user.email, user.code, user.code === 'sales' ? 'Sales' : null]);
   }
   const examples = [
     ['Căn hộ Riverside', 'Quận 2, TP. Hồ Chí Minh', 'Đang thực hiện', false],

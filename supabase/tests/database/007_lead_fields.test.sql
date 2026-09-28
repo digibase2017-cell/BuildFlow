@@ -15,8 +15,9 @@ INSERT INTO auth.users(id,email) VALUES
  ('36000000-0000-0000-0000-000000000003','lead-fields-other@example.test'),
  ('36000000-0000-0000-0000-000000000004','lead-fields-designer@example.test'),
  ('36000000-0000-0000-0000-000000000005','lead-fields-marketing@example.test');
-INSERT INTO public.users(id,company_id,auth_user_id,role_id,full_name,email)
-SELECT x.user_id,x.company_id,x.auth_id,r.id,x.name,x.email FROM (VALUES
+INSERT INTO public.users(id,company_id,auth_user_id,role_id,full_name,email,department)
+SELECT x.user_id,x.company_id,x.auth_id,r.id,x.name,x.email,
+  CASE WHEN x.role_code IN ('sales','marketing') THEN 'Sales' ELSE x.role_code END FROM (VALUES
  ('26000000-0000-0000-0000-000000000001'::uuid,'16000000-0000-0000-0000-000000000001'::uuid,'36000000-0000-0000-0000-000000000001'::uuid,'admin','Admin A','lead-fields-admin@example.test'),
  ('26000000-0000-0000-0000-000000000002'::uuid,'16000000-0000-0000-0000-000000000001'::uuid,'36000000-0000-0000-0000-000000000002'::uuid,'sales','Sales A','lead-fields-sales@example.test'),
  ('26000000-0000-0000-0000-000000000003'::uuid,'16000000-0000-0000-0000-000000000002'::uuid,'36000000-0000-0000-0000-000000000003'::uuid,'admin','Admin B','lead-fields-other@example.test'),
@@ -55,6 +56,7 @@ SELECT is((SELECT execution_types FROM public.projects WHERE id=:'project_id'),A
 SELECT public.set_project_budget('16000000-0000-0000-0000-000000000001',:'project_id',90000000);
 SELECT is((SELECT budget FROM public.project_financials WHERE project_id=:'project_id'),90000000::numeric,'Project budget stored independently');
 SELECT is((SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='project_financials' AND column_name='actual_budget'),0::bigint,'Project has no actual budget column');
+SELECT public.set_lead_assignees('16000000-0000-0000-0000-000000000001','46000000-0000-0000-0000-000000000001',ARRAY['26000000-0000-0000-0000-000000000002','26000000-0000-0000-0000-000000000005']::uuid[]);
 SET LOCAL request.jwt.claim.sub='36000000-0000-0000-0000-000000000002';
 SELECT ok((public.my_capabilities('16000000-0000-0000-0000-000000000001')->'permissions') ? 'project.create','Sales retains default Project create permission');
 SELECT is((SELECT count(*) FROM public.lead_options WHERE company_id='16000000-0000-0000-0000-000000000002'),0::bigint,'Sales cannot read options from another tenant');

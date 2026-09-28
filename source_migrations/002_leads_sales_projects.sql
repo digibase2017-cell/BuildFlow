@@ -15,9 +15,9 @@ CREATE TABLE public.leads (
     zalo text,
     address text,
     source text,
-    status text NOT NULL DEFAULT 'Mới tiếp nhận' CHECK (status IN (
-        'Mới tiếp nhận','Đã liên hệ','Đã gửi báo giá',
-        'Đàm phán','Thành công','Thất bại'
+    status text NOT NULL DEFAULT 'Mới' CHECK (status IN (
+        'Mới','Đang chăm sóc','Đã hẹn gặp',
+        'Đã báo giá','Thành công','Thất bại'
     )),
     customer_requirements text,
     notes text,

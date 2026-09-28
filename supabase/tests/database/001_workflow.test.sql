@@ -10,7 +10,7 @@ SELECT no_plan();
 
 SELECT ok(to_regclass('public.sales') IS NULL AND to_regclass('public.sale_users') IS NULL,'No separate Sale tables');
 
-SELECT is((SELECT count(*) FROM public.permissions WHERE true),56::bigint,'56 permission codes');
+SELECT is((SELECT count(*) FROM public.permissions WHERE true),57::bigint,'57 permission codes');
 
 INSERT INTO public.companies(id,name) VALUES ('10000000-0000-0000-0000-000000000001','Test A'),('10000000-0000-0000-0000-000000000002','Test B');
 
@@ -60,12 +60,12 @@ SET LOCAL request.jwt.claim.sub = '30000000-0000-0000-0000-000000000001';
 
 SELECT lives_ok($test$INSERT INTO public.leads(id,company_id,customer_name) VALUES ('40000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','Customer A')$test$,'Marketing creates Lead with server number and attribution');
 
-SELECT is((SELECT count(*) FROM public.leads WHERE id='40000000-0000-0000-0000-000000000001'),1::bigint,'Marketing sees unassigned Lead');
+SELECT is((SELECT count(*) FROM public.leads WHERE id='40000000-0000-0000-0000-000000000001'),0::bigint,'Marketing cannot see unassigned Lead');
 
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claim.sub = '30000000-0000-0000-0000-000000000002';
 
-SELECT is((SELECT count(*) FROM public.leads WHERE id='40000000-0000-0000-0000-000000000001'),1::bigint,'Sales sees unassigned Lead');
+SELECT is((SELECT count(*) FROM public.leads WHERE id='40000000-0000-0000-0000-000000000001'),0::bigint,'Sales cannot see unassigned Lead');
 
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claim.sub = '30000000-0000-0000-0000-000000000006';
@@ -78,6 +78,7 @@ SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claim.sub = '30000000-0000-0000-0000-000000000005';
 
 SELECT lives_ok($test$SELECT public.set_user_permission('10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000004','lead.assign','allow')$test$,'Admin grants assignment to team leader');
+SELECT lives_ok($test$SELECT public.set_lead_assignees('10000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001',ARRAY['20000000-0000-0000-0000-000000000004']::uuid[])$test$,'Admin assigns initial team leader');
 
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claim.sub = '30000000-0000-0000-0000-000000000004';
@@ -133,7 +134,7 @@ SELECT lives_ok($test$SELECT public.set_lead_assignees('10000000-0000-0000-0000-
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claim.sub = '30000000-0000-0000-0000-000000000001';
 
-SELECT is((SELECT count(*) FROM public.leads WHERE id='40000000-0000-0000-0000-000000000001'),1::bigint,'Removing all assignees opens Lead again');
+SELECT is((SELECT count(*) FROM public.leads WHERE id='40000000-0000-0000-0000-000000000001'),0::bigint,'Removing all assignees keeps Lead hidden without lead.view.all');
 
 SET LOCAL ROLE authenticated;
 SET LOCAL request.jwt.claim.sub = '30000000-0000-0000-0000-000000000005';

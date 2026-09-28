@@ -78,11 +78,17 @@ CREATE FUNCTION app_private.lead_assignment_scope(p_company uuid,p_lead uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT app_private.actor_id(p_company) IS NOT NULL
     AND (app_private.is_manager(p_company)
-      OR NOT EXISTS (SELECT 1 FROM public.lead_assignments a
-        WHERE a.company_id=p_company AND a.lead_id=p_lead AND a.unassigned_at IS NULL)
       OR EXISTS (SELECT 1 FROM public.lead_assignments a
         WHERE a.company_id=p_company AND a.lead_id=p_lead
           AND a.unassigned_at IS NULL AND a.user_id=app_private.actor_id(p_company)));
+$$;
+CREATE FUNCTION app_private.can_view_lead(p_company uuid,p_lead uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT app_private.actor_id(p_company) IS NOT NULL
+    AND (app_private.is_manager(p_company)
+      OR app_private.has_permission(p_company,'lead.view.all')
+      OR (app_private.has_permission(p_company,'lead.view')
+        AND app_private.lead_assignment_scope(p_company,p_lead)));
 $$;
 -- RPC/related-row callers must additionally prove the referenced Lead exists.
 -- Project membership and created_by never confer access to an assigned Lead.

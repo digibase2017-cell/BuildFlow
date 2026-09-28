@@ -5,12 +5,12 @@ import { randomUUID } from 'node:crypto';
 // Expectations come from the agreed handoff, never from implementation seed SQL.
 export async function testRoleMatrix({ db, owner, company, admin, sales, identity, http, check }) {
   const handoff = await readFile(new URL('../project_handoff_business_decisions.md', import.meta.url), 'utf8');
-  const expand = text => [...text.matchAll(/`([a-z_]+)\.([a-z_/]+)`/g)]
+  const expand = text => [...text.matchAll(/`([a-z_]+)\.([a-z_./]+)`/g)]
     .flatMap(m => m[2].split('/').map(action => `${m[1]}.${action}`));
   // Read only catalog bullet entries, not prose explaining removed permissions.
   const all = expand(handoff.split('## 2.6.')[1].split('## 2.7.')[0]
     .split('\n').filter(line => line.startsWith('- `')).join('\n'));
-  assert.equal(new Set(all).size, 56, 'Handoff permission catalog must have 56 codes');
+  assert.equal(new Set(all).size, 57, 'Handoff permission catalog must have 57 codes');
   const codes = { Owner: 'owner', Admin: 'admin', Marketing: 'marketing', Sales: 'sales',
     'Project Manager': 'project_manager', Designer: 'designer', Purchasing: 'purchasing',
     Production: 'production', Construction: 'construction', 'Giám sát': 'supervisor', 'Kế toán': 'accountant' };
@@ -25,8 +25,8 @@ export async function testRoleMatrix({ db, owner, company, admin, sales, identit
     assert.deepEqual(actual, [...expected].sort(), `${code}: default permissions differ from handoff`);
     check(true, `${code}: exact default permission set matches handoff`);
     const user = code === 'admin' ? admin : code === 'sales' ? sales : await identity(code);
-    if (user !== admin && user !== sales) await db.query(`INSERT INTO public.users(id,company_id,auth_user_id,role_id,full_name,email)
-      SELECT $1,$2,$3,id,$4,$5 FROM public.roles WHERE company_id=$2 AND code=$4`,
+    if (user !== admin && user !== sales) await db.query(`INSERT INTO public.users(id,company_id,auth_user_id,role_id,full_name,email,department)
+      SELECT $1,$2,$3,id,$4,$5,'Sales' FROM public.roles WHERE company_id=$2 AND code=$4`,
       [user.id, company, user.subject, code, `${user.id}@example.test`]);
     actors.push({ ...user, code, expected });
   }
@@ -85,7 +85,9 @@ export async function testRoleMatrix({ db, owner, company, admin, sales, identit
     ];
     for (const [permission, table, fields] of creates) {
       const id = randomUUID();
-      const r = await http(`/rest/v1/${table}`, { token: user.token, method: 'POST', prefer: 'return=representation', body: { id, company_id: company, ...fields } });
+      const r = await http(`/rest/v1/${table}`, { token: user.token, method: 'POST',
+        prefer: permission === 'lead' && !['owner', 'admin'].includes(user.code) ? 'return=minimal' : 'return=representation',
+        body: { id, company_id: company, ...fields } });
       const allowed = user.expected.has(`${permission}.create`);
       check(r.status === (allowed ? 201 : 403), `${user.code}: HTTP ${permission}.create ${allowed ? 'allowed' : 'denied'}`);
       assert.equal((await db.query(`SELECT count(*)::int AS n FROM public.${table} WHERE id=$1`, [id])).rows[0].n, allowed ? 1 : 0,
@@ -95,6 +97,7 @@ export async function testRoleMatrix({ db, owner, company, admin, sales, identit
 
   const designer = actors.find(u => u.code === 'designer');
   // Permission alone must not grant project or source Lead scope.
+  await owner.query('DELETE FROM public.project_sales WHERE project_id=$1 AND user_id=$2', [project, designer.id]);
   await owner.query('DELETE FROM public.project_members WHERE project_id=$1 AND user_id=$2', [project, designer.id]);
   let r = await http(`/rest/v1/project_designs?id=eq.${modules.designs}&select=id`, { token: designer.token });
   check(r.status === 200 && r.body.length === 0, 'Designer loses module view after Project membership removal');

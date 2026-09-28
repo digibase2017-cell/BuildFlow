@@ -127,10 +127,17 @@ export async function testHiddenProjects({ db, owner, company, other, foreign, a
   r = await http(`/rest/v1/projects?id=eq.${project}`, { token: boss.token });
   check(r.status === 200 && r.body.length === 0, 'Expired grace blocks Owner hidden Project reads');
   await db.query("UPDATE public.company_subscriptions SET expires_at=now()+interval '1 year',grace_ends_at=now()+interval '1 year 7 days' WHERE company_id=$1", [company]);
+  const assigned = [];
+  for (const row of (await db.query('SELECT DISTINCT lead_id FROM public.lead_assignments WHERE company_id=$1 AND user_id=$2 AND unassigned_at IS NULL', [company, admin.id])).rows) {
+    const users = (await db.query('SELECT user_id FROM public.lead_assignments WHERE company_id=$1 AND lead_id=$2 AND unassigned_at IS NULL', [company, row.lead_id])).rows.map(item => item.user_id);
+    assigned.push({ lead: row.lead_id, users });
+    await owner.query('SELECT public.set_lead_assignees($1,$2,$3)', [company, row.lead_id, users.filter(id => id !== admin.id)]);
+  }
   await db.query('UPDATE public.users SET is_active=false WHERE id=$1', [admin.id]);
   r = await rpc(admin, false);
   check(r.status === 403 && await flag(), 'Inactive Admin cannot unhide');
   await db.query('UPDATE public.users SET is_active=true WHERE id=$1', [admin.id]);
+  for (const row of assigned) await owner.query('SELECT public.set_lead_assignees($1,$2,$3)', [company, row.lead, row.users]);
   // Protected hide/unhide is independent from ordinary project.edit overrides.
   r = await http('/rest/v1/rpc/set_user_permission', { token: boss.token, method: 'POST', body: { p_company: company, p_user: admin.id, p_code: 'project.edit', p_effect: 'deny' } });
   assert.equal(r.status, 204);

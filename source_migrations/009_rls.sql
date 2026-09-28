@@ -60,6 +60,9 @@ BEGIN
   -- Owner/Admin always see business rows within their active company and
   -- subscription. This read exception never grants writes or protected actions.
   IF p_action='view' AND app_private.is_manager(p_company) THEN RETURN true; END IF;
+  IF p_table='leads' AND p_action='view' THEN
+    RETURN app_private.can_view_lead(p_company,(p_row->>'id')::uuid);
+  END IF;
   IF NOT app_private.has_permission(p_company,v_code) THEN RETURN false; END IF;
 
   IF p_table IN ('catalog_items','catalog_item_materials',
